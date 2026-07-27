@@ -1,0 +1,5 @@
+file '/home/runner/work/hayvan-enstitusu/hayvan-enstitusu/output/clips/clip_001.mp4'
+file '/home/runner/work/hayvan-enstitusu/hayvan-enstitusu/output/clips/clip_002.mp4'
+file '/home/runner/work/hayvan-enstitusu/hayvan-enstitusu/output/clips/clip_003.mp4'
+file '/home/runner/work/hayvan-enstitusu/hayvan-enstitusu/output/clips/clip_004.mp4'
+file '/home/runner/work/hayvan-enstitusu/hayvan-enstitusu/output/clips/clip_005.mp4'
