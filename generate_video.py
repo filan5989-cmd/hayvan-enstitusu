@@ -35,7 +35,7 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 IMAGE_MODEL = "gemini-2.5-flash-image"
 TEXT_MODEL = "gemini-3.6-flash"
 
-STYLE_GUIDE = """Wes Anderson cinematic style, fully symmetrical, dead-center frontal one-point-perspective composition, as if the viewer sits in the exact middle of a small theater. Soft pastel storybook color palette (dusty salmon pink, butter yellow, powder blue, muted teal, warm cream) with a single recurring pop of deep vermillion red. Meticulously arranged, diorama-like sets, obsessive small props, even flat diffuse lighting, no harsh shadows, gentle 35mm film grain. All animal characters are fully anthropomorphic and gently caricatured: they stand upright on two legs, wear period-appropriate human clothing suited to their role, use human hand gestures, and interact with human props and furniture. Their faces keep the animal's recognizable features but carry expressive, human-like emotion. Dignified storybook caricature, not realistic wildlife. No text, no letters, no captions anywhere in the image."""
+STYLE_GUIDE = """Wes Anderson cinematic style, fully symmetrical dead-center composition, pastel storybook palette (salmon, butter yellow, powder blue) with one vermillion red accent, diorama-like sets, flat even lighting, light film grain. Animal character is fully anthropomorphic: stands upright, wears period human clothing, human gestures, human props. Face keeps animal features but human-like expression. Dignified storybook caricature. No text in image."""
 
 
 def expand_topic_to_scenes(topic: str, num_scenes: int = 30) -> dict:
@@ -135,6 +135,9 @@ def _cloudflare_generate_image(prompt: str, out_path: str):
     """Cloudflare Workers AI (flux-1-schnell, ucretsiz) ile gorsel uretir."""
     if not (CF_ACCOUNT_ID and CF_API_TOKEN):
         raise RuntimeError("CF_ACCOUNT_ID / CF_API_TOKEN tanımlı değil.")
+
+    if len(prompt) > 1800:
+        prompt = prompt[:1800]
 
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
     payload = {"prompt": prompt}
