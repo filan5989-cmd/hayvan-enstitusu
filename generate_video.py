@@ -126,28 +126,50 @@ Output EXACTLY this JSON schema, nothing else:
     return json.loads(text_out)
 
 
-def _pollinations_generate_image(prompt: str, out_path: str, seed: int = 42):
-    """Pollinations.ai (flux, ucretsiz) ile gorsel uretir, out_path'e kaydeder."""
-    encoded_prompt = urllib.parse.quote(prompt)
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&seed={seed}&model=flux"
+CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
+CF_API_TOKEN = os.environ.get("CF_API_TOKEN", "")
+CF_MODEL = "@cf/black-forest-labs/flux-1-schnell"
 
-    req = urllib.request.Request(url)
-    req.add_header("User-Agent", USER_AGENT)
+
+def _cloudflare_generate_image(prompt: str, out_path: str):
+    """Cloudflare Workers AI (flux-1-schnell, ucretsiz) ile gorsel uretir."""
+    if not (CF_ACCOUNT_ID and CF_API_TOKEN):
+        raise RuntimeError("CF_ACCOUNT_ID / CF_API_TOKEN tanımlı değil.")
+
+    url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
+    payload = {"prompt": prompt}
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=data,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {CF_API_TOKEN}"},
+    )
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
-            data = resp.read()
+            content_type = resp.headers.get("Content-Type", "")
+            raw = resp.read()
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="ignore")
-        print(f"POLLINATIONS HATA {e.code}: {body}")
+        print(f"CLOUDFLARE HATA {e.code}: {body}")
         raise
-    with open(out_path, "wb") as f:
-        f.write(data)
+
+    if "application/json" in content_type:
+        # bazi modeller base64 JSON donuyor: {"result": {"image": "..."}}
+        result = json.loads(raw.decode("utf-8"))
+        image_b64 = result.get("result", {}).get("image")
+        if not image_b64:
+            raise RuntimeError(f"Cloudflare yanıtında görsel bulunamadı: {result}")
+        with open(out_path, "wb") as f:
+            f.write(base64.b64decode(image_b64))
+    else:
+        # dogrudan binary (jpeg/png) donuyor
+        with open(out_path, "wb") as f:
+            f.write(raw)
 
 
 def generate_image(prompt: str, index: int) -> str:
     out_path = os.path.join(IMG_DIR, f"scene_{index:03d}.jpg")
     print(f"[{index}] Görsel isteniyor: {prompt[:70]}...")
-    _pollinations_generate_image(prompt, out_path, seed=index)
+    _cloudflare_generate_image(prompt, out_path)
     return out_path
 
 
@@ -155,7 +177,7 @@ def generate_thumbnail(thumb_cfg: dict) -> str:
     bg_prompt = thumb_cfg.get("background_prompt", "")
     final_thumb = os.path.join(OUTPUT_DIR, "thumbnail.jpg")
     print("Kapak resmi isteniyor...")
-    _pollinations_generate_image(bg_prompt, final_thumb, seed=999)
+    _cloudflare_generate_image(bg_prompt, final_thumb)
     return final_thumb
 
 
