@@ -126,46 +126,28 @@ Output EXACTLY this JSON schema, nothing else:
     return json.loads(text_out)
 
 
-def _gemini_generate_image(prompt: str, out_path: str, aspect_ratio: str = "16:9"):
-    """Gemini (Nano Banana) ile gorsel uretir, out_path'e kaydeder."""
-    if not GEMINI_KEY:
-        raise RuntimeError("GEMINI_API_KEY tanımlı değil.")
+def _pollinations_generate_image(prompt: str, out_path: str, seed: int = 42):
+    """Pollinations.ai (flux, ucretsiz) ile gorsel uretir, out_path'e kaydeder."""
+    encoded_prompt = urllib.parse.quote(prompt)
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&seed={seed}&model=flux"
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{IMAGE_MODEL}:generateContent"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"imageConfig": {"aspectRatio": aspect_ratio}},
-    }
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=data,
-        headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY},
-    )
+    req = urllib.request.Request(url)
+    req.add_header("User-Agent", USER_AGENT)
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
+            data = resp.read()
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="ignore")
-        print(f"GEMINI GORSEL HATA {e.code}: {body}")
+        print(f"POLLINATIONS HATA {e.code}: {body}")
         raise
-
-    parts_out = result["candidates"][0]["content"]["parts"]
-    image_b64 = None
-    for part in parts_out:
-        if "inlineData" in part:
-            image_b64 = part["inlineData"]["data"]
-            break
-    if not image_b64:
-        raise RuntimeError(f"Gemini yanıtında görsel bulunamadı: {result}")
-
     with open(out_path, "wb") as f:
-        f.write(base64.b64decode(image_b64))
+        f.write(data)
 
 
 def generate_image(prompt: str, index: int) -> str:
     out_path = os.path.join(IMG_DIR, f"scene_{index:03d}.jpg")
     print(f"[{index}] Görsel isteniyor: {prompt[:70]}...")
-    _gemini_generate_image(prompt, out_path)
+    _pollinations_generate_image(prompt, out_path, seed=index)
     return out_path
 
 
@@ -173,7 +155,7 @@ def generate_thumbnail(thumb_cfg: dict) -> str:
     bg_prompt = thumb_cfg.get("background_prompt", "")
     final_thumb = os.path.join(OUTPUT_DIR, "thumbnail.jpg")
     print("Kapak resmi isteniyor...")
-    _gemini_generate_image(bg_prompt, final_thumb)
+    _pollinations_generate_image(bg_prompt, final_thumb, seed=999)
     return final_thumb
 
 
